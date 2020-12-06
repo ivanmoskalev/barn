@@ -1,10 +1,26 @@
 {
   "name": "@ivanmoskalev/barn",
-  "version": "0.0.1",
-  "main": "main.js",
+  "version": "0.0.4",
+  "main": "dist/main.js",
   "license": "MIT",
+  "private": false,
+  "bin": {
+    "barn": "dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engineStrict": true,
+  "engines": {
+    "node": ">=12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ivanmoskalev/barn.git"
+  },
   "scripts": {
-    "r": "ts-node main.ts"
+    "r": "ts-node main.ts",
+    "prepublish": "tsc"
   },
   "dependencies": {
     "commander": "^5.1.0",

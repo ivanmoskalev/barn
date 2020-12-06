@@ -1,145 +1,153 @@
 import path from 'path';
-import * as fs from 'fs';
 import execa from 'execa';
 import fse from 'fs-extra';
+import {BarnAndroidConfig, BarnConfig, BarnIosConfig} from "./config";
+import * as Util from './util';
+import * as os from "os";
 
-interface BuildParams {
+interface BuildContext {
     projectDirectory: string,
     outputDirectory: string,
     cacheDirectory: string,
     parallel: boolean,
+    config: BarnConfig,
 }
 
-export async function build(params: BuildParams): Promise<boolean> {
-    const projectDirectory = path.resolve(params.projectDirectory);
-    const outputDirectory = path.resolve(params.outputDirectory);
-    const cacheDirectory = path.resolve(params.cacheDirectory);
+export async function build(context: BuildContext): Promise<boolean> {
+    const projectDirectory = path.resolve(context.projectDirectory);
+    const outputDirectory = path.resolve(context.outputDirectory);
+    const cacheDirectory = path.resolve(context.cacheDirectory);
+    const tempDirectory = fse.mkdtempSync(`${os.tmpdir()}/ivanmoskalev-barn-`);
 
-    console.log('rnb: Starting build...')
+    console.log('[barn] Starting build...')
 
-    await beforeBuild(projectDirectory);
-    await fse.remove(outputDirectory);
-    await fse.mkdirp(outputDirectory);
+    await preBuild(context);
 
-    const iosJsBundle = buildJsBundle(projectDirectory, outputDirectory, 'ios');
-    const androidJsBundle = buildJsBundle(projectDirectory, outputDirectory, 'android');
-    const iosNative = iosJsBundle.then(() => buildNativeIos(projectDirectory, outputDirectory, cacheDirectory));
-    const androidNative = androidJsBundle.then(() => buildAndroid(projectDirectory, outputDirectory));
+    {
+        const tempProductsDir = path.resolve(`${tempDirectory}/artifacts/`);
+        await Util.cleanDirectory(`${tempProductsDir}/jsbundle-ios`);
+        await Util.cleanDirectory(`${tempProductsDir}/jsbundle-android`);
+        await Util.cleanDirectory(`${tempProductsDir}/ios`);
+        await Util.cleanDirectory(`${tempProductsDir}/android`);
 
-    if (params.parallel) {
-        await Promise.all([
-            iosJsBundle,
-            androidJsBundle,
-            iosNative,
-            androidNative
-        ]);
-    } else {
-        await iosJsBundle;
-        await androidJsBundle;
-        await iosNative;
-        await androidNative;
-    }
+        const iosJsBundle = buildReactNativeBundle(projectDirectory, `${tempProductsDir}/jsbundle-ios`, 'ios');
 
-    return true;
-}
+        const androidJsBundle = buildReactNativeBundle(projectDirectory, `${tempProductsDir}/jsbundle-android`, 'android');
 
-function iterateDir(dir): string[] {
-    const files = []
-    fse.readdirSync(dir).forEach(filename => {
-        const filePath = path.join(dir, filename);
-        if (fse.statSync(filePath).isDirectory()) {
-            iterateDir(filePath).forEach(file => files.push(file))
+        const iosNative = iosJsBundle.then(() => buildIos({
+            projectDirectory,
+            outputDirectory: `${tempProductsDir}/ios`,
+            cacheDirectory,
+            iosConfig: context.config.ios
+        }));
+
+        const androidNative = androidJsBundle.then(() => buildAndroid({
+            projectDirectory,
+            outputDirectory: `${tempProductsDir}/android`,
+            config: context.config.android
+        }));
+
+        if (context.parallel) {
+            await Promise.all([
+                iosJsBundle,
+                androidJsBundle,
+                iosNative,
+                androidNative
+            ]);
+        } else {
+            await iosJsBundle;
+            await androidJsBundle;
+            await iosNative;
+            await androidNative;
         }
-        files.push(filePath);
-    });
-    return files;
-}
 
-
-export async function beforeBuild(projectDirectory: string): Promise<boolean> {
-    await execa('yarn', ['install'], {cwd: projectDirectory});
-    await execa('yarn', ['jetify'], {cwd: `${projectDirectory}`}); // FIXME: handle monorepo case
-    return true;
-}
-
-async function buildNativeIos(projectDirectory: string, outputDirectory: string, cacheDirectory: string): Promise<boolean> {
-    {
-        console.log('rnb: Install CocoaPods')
-        const p = execa(
-            'pod',
-            ['install'],
-            {cwd: `${projectDirectory}/ios`}
-        );
-        // p.stdout.pipe(process.stdout);
-        await p;
+        await fse.copy(tempProductsDir, outputDirectory, { recursive: true });
     }
 
-    {
-        console.log('rnb: Prebuild CocoaPods');
-        const p = execa(
-            'bundle',
-            ['exec', 'xcode-archive-cache', 'inject', '--configuration=Release', `--storage=${cacheDirectory}/xcode`],
-            {cwd: `${projectDirectory}/ios`}
-        );
-        // p.stdout.pipe(process.stdout);
-        await p;
-    }
-
-    {
-        // TODO: pass via config or cli
-        const workspaceName = 'foo';
-        const scheme = 'foo';
-        const archiveName = 'foo.xcarchive';
-        const p = execa(
-            'xcodebuild',
-            [
-                '-workspace', workspaceName,
-                '-scheme', scheme,
-                'archive',
-                // '-sdk iphoneos',
-                '-configuration', 'Release',
-                '-archivePath', `${outputDirectory}/${archiveName}`,
-            ],
-            {cwd: `${projectDirectory}/ios`}
-        );
-        // p.stdout.pipe(process.stdout);
-        await p;
-    }
+    await postBuild(context);
 
     return true;
 }
 
-async function buildAndroid(projectDirectory: string, outputDirectory: string): Promise<boolean> {
-    {
-        console.log('rnb: Gradle');
-        const p = execa(
-            './gradlew',
-            [
-                'assembleRelease'
-            ],
-            {cwd: `${projectDirectory}/android`}
-        );
-        // p.stdout.pipe(process.stdout);
-        await p;
-    }
 
-    {
-        console.log('rnb: Copy artifacts');
-        const isApk = /\.apk$/;
-        iterateDir(`${projectDirectory}/android`)
-            .forEach(file => {
-                if (isApk.test(file)) {
-                    fse.copyFileSync(`${file}`, `${outputDirectory}/${path.basename(file)}`);
-                }
-            });
-    }
+export async function preBuild(context: BuildContext) {
+}
+
+
+export async function postBuild(context: BuildContext) {
+}
+
+interface BuildIosParams {
+    projectDirectory: string,
+    outputDirectory: string,
+    cacheDirectory: string,
+    iosConfig: BarnIosConfig,
+}
+
+async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosConfig}: BuildIosParams): Promise<boolean> {
+    console.log('[barn] [ios] Install CocoaPods')
+    await execa(
+        'pod',
+        ['install'],
+        {cwd: `${projectDirectory}/ios`}
+    );
+
+    console.log('[barn] [ios] Run xcode-archive-cache')
+    await execa(
+        'bundle',
+        ['exec', 'xcode-archive-cache', 'inject', '--configuration=Release', `--storage=${cacheDirectory}/xcode`],
+        {cwd: `${projectDirectory}/ios`}
+    );
+
+    console.log('[barn] [ios] Run xcodebuild')
+    await execa(
+        'xcodebuild',
+        [
+            'archive',
+            '-workspace', iosConfig.xcodeWorkspaceName,
+            '-scheme', iosConfig.xcodeSchemeName,
+            '-configuration', iosConfig.xcodeConfigName,
+            '-archivePath', `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}.xcarchive`,
+        ],
+        {cwd: `${projectDirectory}/ios`}
+    );
+
+    console.log('[barn] [ios] Build finished');
 
     return true;
 }
 
-async function buildJsBundle(projectDirectory: string, outputDirectory: string, platform: string) {
-    await fse.mkdirp(`${outputDirectory}/jsbundle-${platform}/`);
-    const p = execa(
+interface BuildAndroidParams {
+    projectDirectory: string;
+    outputDirectory: string;
+    config: BarnAndroidConfig;
+}
+
+async function buildAndroid({projectDirectory, outputDirectory, config}: BuildAndroidParams): Promise<boolean> {
+    console.log('[barn] [android] Running gradle build');
+
+    await execa(
+        './gradlew',
+        [
+            `assemble${config.gradleTarget}`
+        ],
+        {cwd: `${projectDirectory}/android`}
+    );
+
+    console.log('[barn] [android] Copying .apk files');
+
+    const dirContents = await Util.findFilesRecursively({dir: `${projectDirectory}/android`, matching: /\.apk$/});
+    dirContents.forEach(file => fse.copyFileSync(`${file}`, `${outputDirectory}/${path.basename(file)}`));
+
+    console.log('[barn] [android] Build finished')
+
+    return true;
+}
+
+async function buildReactNativeBundle(projectDirectory: string, outputDirectory: string, platform: 'ios' | 'android') {
+    console.log(`[barn] [${platform}] [jsbundle] Running 'react-native bundle'`);
+
+    await execa(
         'yarn',
         [
             'react-native',
@@ -147,11 +155,11 @@ async function buildJsBundle(projectDirectory: string, outputDirectory: string, 
             '--entry-file', 'index.js',
             '--platform', platform,
             '--dev', 'false',
-            '--bundle-output', `${outputDirectory}/jsbundle-${platform}/main.jsbundle`,
-            '--assets-dest', `${outputDirectory}/jsbundle-${platform}`,
+            '--bundle-output', `${outputDirectory}/${platform === 'ios' ? 'main.jsbundle' : 'index.android.bundle'}`,
+            '--assets-dest', `${outputDirectory}`,
         ],
-        {cwd: `${projectDirectory}`}
+        {cwd: projectDirectory}
     );
-    // p.stdout.pipe(process.stdout);
-    await p;
+
+    console.log(`[barn] [${platform}] [jsbundle] Build finished`);
 }
