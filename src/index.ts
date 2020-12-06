@@ -120,6 +120,19 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
         {cwd: `${projectDirectory}/ios`}
     );
 
+    console.log('[barn] [ios] Export IPA from .xcarchive')
+
+    await execa(
+        'xcodebuild',
+        [
+            '-exportArchive',
+            '-archivePath', `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}.xcarchive`,
+            '-exportPath', `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}`,
+            '-exportFormat', 'ipa',
+            '-exportProvisioningProfile', iosConfig.codesigning.provisioningProfileName
+        ]
+    );
+
     console.log('[barn] [ios] Build finished');
 
     return true;
