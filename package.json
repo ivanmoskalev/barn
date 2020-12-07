@@ -1,6 +1,6 @@
 {
   "name": "@ivanmoskalev/barn",
-  "version": "0.0.13",
+  "version": "0.0.15",
   "main": "dist/main.js",
   "license": "MIT",
   "private": false,
@@ -26,6 +26,7 @@
     "bplist-parser": "^0.2.0",
     "commander": "^5.1.0",
     "execa": "^4.0.3",
+    "find-remove": "^2.0.3",
     "fs-extra": "^9.0.1",
     "plist": "^3.0.1",
     "xcode": "^3.0.1"

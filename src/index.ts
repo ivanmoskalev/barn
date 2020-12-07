@@ -5,6 +5,7 @@ import {BarnAndroidConfig, BarnConfig, BarnIosConfig} from "./config";
 import {FsUtil} from './util';
 import * as os from "os";
 import * as plist from 'plist'
+import findRemoveSync from 'find-remove';
 
 interface BuildContext {
     projectDirectory: string,
@@ -45,6 +46,7 @@ export async function build(context: BuildContext): Promise<boolean> {
         const androidNative = androidJsBundle.then(() => buildAndroid({
             projectDirectory,
             outputDirectory: `${tempProductsDir}/android`,
+            cacheDirectory: `${cacheDirectory}/gradle`,
             config: context.config.android
         }));
 
@@ -175,16 +177,20 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
 interface BuildAndroidParams {
     projectDirectory: string;
     outputDirectory: string;
+    cacheDirectory: string;
     config: BarnAndroidConfig;
 }
 
-async function buildAndroid({projectDirectory, outputDirectory, config}: BuildAndroidParams): Promise<boolean> {
+async function buildAndroid({projectDirectory, outputDirectory, cacheDirectory, config}: BuildAndroidParams): Promise<boolean> {
     console.log('[barn] [android] Running gradle build');
 
     await execa(
         './gradlew',
         [
-            `assemble${config.gradleTarget}`
+            `assemble${config.gradleTarget}`,
+            '--build-cache',
+            '--gradle-user-home', cacheDirectory,
+            '--parallel'
         ],
         {cwd: `${projectDirectory}/android`}
     );
@@ -193,6 +199,17 @@ async function buildAndroid({projectDirectory, outputDirectory, config}: BuildAn
 
     const dirContents = await FsUtil.findFilesRecursively({dir: `${projectDirectory}/android`, matching: /\.apk$/});
     dirContents.forEach(file => fse.copyFileSync(`${file}`, `${outputDirectory}/${path.basename(file)}`));
+
+    console.log('[barn] [android] Cleaning up caches dir');
+
+    await Promise.all([
+        fse.rmdir(path.join(cacheDirectory, 'daemon')),
+        fse.rmdir(path.join(cacheDirectory, 'jdks')),
+        fse.rmdir(path.join(cacheDirectory, 'native')),
+        fse.rmdir(path.join(cacheDirectory, 'notifications')),
+    ]);
+
+    findRemoveSync(cacheDirectory, {extensions: ['.lock']});
 
     console.log('[barn] [android] Build finished')
 
