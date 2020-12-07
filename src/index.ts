@@ -122,14 +122,16 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
 
     console.log('[barn] [ios] Export IPA from .xcarchive')
 
+    // FIXME: generate export plist dynamically, so that args can be passed to it
+    const exportPlistPath = path.resolve(__dirname, '../misc/xcode-archive-export.plist');
+
     await execa(
         'xcodebuild',
         [
             '-exportArchive',
             '-archivePath', `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}.xcarchive`,
             '-exportPath', `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}`,
-            '-exportFormat', 'ipa',
-            '-exportProvisioningProfile', iosConfig.codesigning.provisioningProfileName
+            '-exportOptionsPlist', exportPlistPath,
         ]
     );
 
