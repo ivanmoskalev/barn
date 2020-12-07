@@ -122,8 +122,20 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
 
     console.log('[barn] [ios] Export IPA from .xcarchive')
 
-    // FIXME: generate export plist dynamically, so that args can be passed to it
-    const exportPlistPath = path.resolve(__dirname, '../misc/xcode-archive-export.plist');
+    // TODO: this should be done in a temp dir
+
+    const exportPlistPath = `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}.export.plist`;
+    const exportPlist = `
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+          <key>method</key>
+          <string>app-store</string>
+        </dict>
+        </plist>
+    `;
+    await fse.writeFile(exportPlistPath, exportPlist);
 
     await execa(
         'xcodebuild',
