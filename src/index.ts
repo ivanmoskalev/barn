@@ -100,12 +100,12 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
     );
 
     console.log('[barn] [ios] Run xcodebuild')
-    const codesigningParams = (iosConfig.codesigning && [
-        'CODE_SIGN_STYLE=Manual',
-        `CODE_SIGN_IDENTITY=${iosConfig.codesigning.signingIdentity}`,
-        `PROVISIONING_PROFILE=`,
-        `PROVISIONING_PROFILE_SPECIFIER=${iosConfig.codesigning.provisioningProfileName}`
-    ]) || [];
+    // const codesigningParams = (iosConfig.codesigning && [
+    //     'CODE_SIGN_STYLE=Manual',
+    //     `CODE_SIGN_IDENTITY=${iosConfig.codesigning.signingIdentity}`,
+    //     `PROVISIONING_PROFILE=`,
+    //     `PROVISIONING_PROFILE_SPECIFIER=${iosConfig.codesigning.provisioningProfileName}`
+    // ]) || [];
 
     await execa(
         'xcodebuild',
@@ -115,7 +115,7 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
             '-scheme', iosConfig.xcodeSchemeName,
             '-configuration', iosConfig.xcodeConfigName,
             '-archivePath', `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}.xcarchive`,
-            ...codesigningParams,
+            //...codesigningParams,
         ],
         {cwd: `${projectDirectory}/ios`}
     );
@@ -132,6 +132,8 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
         <dict>
           <key>method</key>
           <string>app-store</string>
+          <key>signingStyle</key>
+          <string>automatic</string>
         </dict>
         </plist>
     `;
