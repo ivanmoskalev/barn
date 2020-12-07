@@ -1,9 +1,9 @@
 import fse from "fs-extra";
 import path from "path";
 
-export async function cleanDirectory(dir: string) {
-    await fse.remove(dir);
-    await fse.mkdirp(dir);
+export async function cleanDirectory(directory: string) {
+    await fse.remove(directory);
+    await fse.mkdirp(directory);
 }
 
 interface FindFilesRecursively {
@@ -11,7 +11,8 @@ interface FindFilesRecursively {
     matching: RegExp;
 }
 
-export async function findFilesRecursively({dir, matching}: FindFilesRecursively): Promise<string[]> {
+export async function findFilesRecursively(params: FindFilesRecursively): Promise<string[]> {
+    const {dir, matching} = params;
     let files: string[] = []
     const items = await fse.readdir(dir);
     for (const filename of items) {

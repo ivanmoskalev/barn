@@ -1,6 +1,6 @@
 {
   "name": "@ivanmoskalev/barn",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "main": "dist/main.js",
   "license": "MIT",
   "private": false,
@@ -20,17 +20,20 @@
   },
   "scripts": {
     "r": "ts-node main.ts",
-    "prepublish": "tsc"
+    "prepublish": "rimraf dist && tsc"
   },
   "dependencies": {
+    "bplist-parser": "^0.2.0",
     "commander": "^5.1.0",
     "execa": "^4.0.3",
     "fs-extra": "^9.0.1",
+    "plist": "^3.0.1",
     "xcode": "^3.0.1"
   },
   "devDependencies": {
     "@types/commander": "^2.12.2",
     "@types/fs-extra": "^9.0.4",
+    "rimraf": "^3.0.2",
     "ts-node": "^9.0.0",
     "typescript": "^4.1.2"
   }

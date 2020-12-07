@@ -2,8 +2,9 @@ import path from 'path';
 import execa from 'execa';
 import fse from 'fs-extra';
 import {BarnAndroidConfig, BarnConfig, BarnIosConfig} from "./config";
-import * as Util from './util';
+import {FsUtil} from './util';
 import * as os from "os";
+import * as plist from 'plist'
 
 interface BuildContext {
     projectDirectory: string,
@@ -25,10 +26,10 @@ export async function build(context: BuildContext): Promise<boolean> {
 
     {
         const tempProductsDir = path.resolve(`${tempDirectory}/artifacts/`);
-        await Util.cleanDirectory(`${tempProductsDir}/jsbundle-ios`);
-        await Util.cleanDirectory(`${tempProductsDir}/jsbundle-android`);
-        await Util.cleanDirectory(`${tempProductsDir}/ios`);
-        await Util.cleanDirectory(`${tempProductsDir}/android`);
+        await FsUtil.cleanDirectory(`${tempProductsDir}/jsbundle-ios`);
+        await FsUtil.cleanDirectory(`${tempProductsDir}/jsbundle-android`);
+        await FsUtil.cleanDirectory(`${tempProductsDir}/ios`);
+        await FsUtil.cleanDirectory(`${tempProductsDir}/android`);
 
         const iosJsBundle = buildReactNativeBundle(projectDirectory, `${tempProductsDir}/jsbundle-ios`, 'ios');
 
@@ -100,12 +101,12 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
     );
 
     console.log('[barn] [ios] Run xcodebuild')
-    // const codesigningParams = (iosConfig.codesigning && [
-    //     'CODE_SIGN_STYLE=Manual',
-    //     `CODE_SIGN_IDENTITY=${iosConfig.codesigning.signingIdentity}`,
-    //     `PROVISIONING_PROFILE=`,
-    //     `PROVISIONING_PROFILE_SPECIFIER=${iosConfig.codesigning.provisioningProfileName}`
-    // ]) || [];
+    const codesigningParams = (iosConfig.codesigning && [
+        'CODE_SIGN_STYLE=Manual',
+        `CODE_SIGN_IDENTITY=${iosConfig.codesigning.signingIdentity}`,
+        `PROVISIONING_PROFILE=`,
+        `PROVISIONING_PROFILE_SPECIFIER=${iosConfig.codesigning.provisioningProfileName}`
+    ]) || [];
 
     await execa(
         'xcodebuild',
@@ -115,8 +116,7 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
             '-scheme', iosConfig.xcodeSchemeName,
             '-configuration', iosConfig.xcodeConfigName,
             '-archivePath', `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}.xcarchive`,
-            '-allowProvisioningUpdates',
-            //...codesigningParams,
+            ...codesigningParams,
         ],
         {cwd: `${projectDirectory}/ios`}
     );
@@ -125,19 +125,36 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
 
     // TODO: this should be done in a temp dir
 
+    const allProvisioningProfileFiles = await FsUtil.findFilesRecursively({dir: `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}.xcarchive/Products`, matching: /\.mobileprovision$/});
+    const bundleIdToProvProfileMapping = await Promise.all(allProvisioningProfileFiles.map(async (mobileprovisionPath) => {
+        const directory = path.dirname(mobileprovisionPath);
+        console.log(directory);
+        const infoPlistPath = path.join(directory, 'Info.plist');
+        const bplist = require('bplist-parser');
+        const infoPlist = await bplist.parseFile(infoPlistPath);
+        const bundleId = infoPlist[0]['CFBundleIdentifier'];
+        const command = execa.commandSync(`security cms -D -i ${mobileprovisionPath}`);
+        const provProfPlist = plist.parse(command.stdout);
+        const provProfileUuid = provProfPlist['UUID'];
+        return `<key>${bundleId}</key><string>${provProfileUuid}</string>`;
+    }));
+
     const exportPlistPath = `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}.export.plist`;
     const exportPlist = `
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-          <key>method</key>
-          <string>app-store</string>
-          <key>signingStyle</key>
-          <string>automatic</string>
-        </dict>
-        </plist>
-    `;
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>method</key>
+  <string>app-store</string>
+  <key>signingStyle</key>
+  <string>manual</string>
+  <key>provisioningProfiles</key>
+  <dict>
+    ${bundleIdToProvProfileMapping.join('\n    ')}
+  </dict>
+</dict>
+</plist>`;
     await fse.writeFile(exportPlistPath, exportPlist);
 
     await execa(
@@ -145,9 +162,8 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
         [
             '-exportArchive',
             '-archivePath', `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}.xcarchive`,
-            '-exportPath', `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}`,
+            '-exportPath', `${outputDirectory}`,
             '-exportOptionsPlist', exportPlistPath,
-            '-allowProvisioningUpdates',
         ]
     );
 
@@ -175,7 +191,7 @@ async function buildAndroid({projectDirectory, outputDirectory, config}: BuildAn
 
     console.log('[barn] [android] Copying .apk files');
 
-    const dirContents = await Util.findFilesRecursively({dir: `${projectDirectory}/android`, matching: /\.apk$/});
+    const dirContents = await FsUtil.findFilesRecursively({dir: `${projectDirectory}/android`, matching: /\.apk$/});
     dirContents.forEach(file => fse.copyFileSync(`${file}`, `${outputDirectory}/${path.basename(file)}`));
 
     console.log('[barn] [android] Build finished')
