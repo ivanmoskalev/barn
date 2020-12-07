@@ -115,6 +115,7 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
             '-scheme', iosConfig.xcodeSchemeName,
             '-configuration', iosConfig.xcodeConfigName,
             '-archivePath', `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}.xcarchive`,
+            '-allowProvisioningUpdates',
             //...codesigningParams,
         ],
         {cwd: `${projectDirectory}/ios`}
@@ -146,6 +147,7 @@ async function buildIos({projectDirectory, outputDirectory, cacheDirectory, iosC
             '-archivePath', `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}.xcarchive`,
             '-exportPath', `${outputDirectory}/${iosConfig.xcodeSchemeName}-${iosConfig.xcodeConfigName}`,
             '-exportOptionsPlist', exportPlistPath,
+            '-allowProvisioningUpdates',
         ]
     );
 
