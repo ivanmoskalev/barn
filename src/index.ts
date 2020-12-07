@@ -5,7 +5,7 @@ import {BarnAndroidConfig, BarnConfig, BarnIosConfig} from "./config";
 import {FsUtil} from './util';
 import * as os from "os";
 import * as plist from 'plist'
-import findRemoveSync from 'find-remove';
+import del from 'del';
 
 interface BuildContext {
     projectDirectory: string,
@@ -190,7 +190,8 @@ async function buildAndroid({projectDirectory, outputDirectory, cacheDirectory, 
             `assemble${config.gradleTarget}`,
             '--build-cache',
             '--gradle-user-home', cacheDirectory,
-            '--parallel'
+            '--parallel',
+            '--no-daemon'
         ],
         {cwd: `${projectDirectory}/android`}
     );
@@ -202,14 +203,14 @@ async function buildAndroid({projectDirectory, outputDirectory, cacheDirectory, 
 
     console.log('[barn] [android] Cleaning up caches dir');
 
-    await Promise.all([
-        fse.rmdir(path.join(cacheDirectory, 'daemon')),
-        fse.rmdir(path.join(cacheDirectory, 'jdks')),
-        fse.rmdir(path.join(cacheDirectory, 'native')),
-        fse.rmdir(path.join(cacheDirectory, 'notifications')),
-    ]);
-
-    findRemoveSync(cacheDirectory, {extensions: ['.lock']});
+    await del([
+        path.join(cacheDirectory, 'daemon'),
+        path.join(cacheDirectory, 'native'),
+        path.join(cacheDirectory, 'notifications'),
+        path.join(cacheDirectory, 'jdks'),
+        path.join(cacheDirectory, '**/*.lock'),
+        path.join(cacheDirectory, 'caches/[123456789].[1234567890]'),
+    ], {force: true});
 
     console.log('[barn] [android] Build finished')
 

@@ -10,6 +10,6 @@ barn build
 
 ## Disclaimer
 
-This tool is in early stages of development yet and is probably unusable for most projects except my own.
+This tool is in early stages of development yet and is probably unusable for most projects except my own. Really, **DON'T USE IT YET**.
 
 If it works out well, though, I'll be ready to make `barn` a production-ready tool. 
