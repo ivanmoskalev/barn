@@ -106,11 +106,6 @@ export async function postBuild(context: BuildContext) {
     );
 
     await del([
-        path.join(gradleCacheDirectory, 'daemon'),
-        path.join(gradleCacheDirectory, 'native'),
-        path.join(gradleCacheDirectory, 'notifications'),
-        path.join(gradleCacheDirectory, 'jdks'),
         path.join(gradleCacheDirectory, '**/*.lock'),
-        path.join(gradleCacheDirectory, 'caches/[123456789].[1234567890]'),
     ], {force: true});
 }
