@@ -1,9 +1,9 @@
 import path from 'path';
-import execa from 'execa';
 import fse from 'fs-extra';
 import {BarnSchemeConfig} from "./config";
 import {FsUtil} from './util';
 import * as os from 'os';
+import buildReactNativeBundle from "./tasks/build-rn-bundle";
 
 import buildAndroidApp from './tasks/build-android';
 import buildIosApp from './tasks/build-ios';
@@ -64,24 +64,4 @@ export async function preBuild(context: BuildContext) {
 }
 
 export async function postBuild(context: BuildContext) {
-}
-
-async function buildReactNativeBundle(projectDirectory: string, outputDirectory: string, platform: 'ios' | 'android') {
-    console.log(`[barn] [${platform}] [jsbundle] Running 'react-native bundle'`);
-
-    await execa(
-        'yarn',
-        [
-            'react-native',
-            'bundle',
-            '--entry-file', 'index.js',
-            '--platform', platform,
-            '--dev', 'false',
-            '--bundle-output', `${outputDirectory}/${platform === 'ios' ? 'main.jsbundle' : 'index.android.bundle'}`,
-            '--assets-dest', `${outputDirectory}`,
-        ],
-        {cwd: projectDirectory}
-    );
-
-    console.log(`[barn] [${platform}] [jsbundle] Build finished`);
 }

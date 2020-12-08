@@ -6,16 +6,18 @@ import path from "path";
 import del from "del";
 
 interface BuildAndroidParams {
-    projectDirectory: string;
-    outputDirectory: string;
-    cacheDirectory: string;
-    config: BarnAndroidConfig;
+    projectDirectory: string
+    outputDirectory: string
+    cacheDirectory: string
+    config: BarnAndroidConfig
+    gradleExtraCommandLineArgs?: string[]
 }
 
 export default async function buildAndroid(params: BuildAndroidParams): Promise<boolean> {
     const {projectDirectory, outputDirectory, cacheDirectory, config} = params;
     console.log('[barn] [android] Running gradle build');
 
+    const extraCliArgs = params.gradleExtraCommandLineArgs || [];
     await execa(
         './gradlew',
         [
@@ -23,7 +25,7 @@ export default async function buildAndroid(params: BuildAndroidParams): Promise<
             '--build-cache',
             '--gradle-user-home', cacheDirectory,
             '--parallel',
-            //'--no-daemon'
+            ...extraCliArgs,
         ],
         {cwd: `${projectDirectory}/android`}
     );

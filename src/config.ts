@@ -15,15 +15,18 @@ export interface BarnIosConfig {
     xcodeWorkspaceName: string
     xcodeConfigName: string
     codesigning?: BarnIosCodesigningConfig
+    xcodebuildExtraCommandLineArgs?: string[]
 }
 
 export interface BarnIosCodesigningConfig {
     signingIdentity: string
     provisioningProfileName: string
+    ipaExportMethod?: string
 }
 
 export interface BarnAndroidConfig {
     gradleTarget: string,
+    gradleExtraCommandLineArgs?: string[]
 }
 
 export default function loadConfig(configPath: string): BarnConfig {

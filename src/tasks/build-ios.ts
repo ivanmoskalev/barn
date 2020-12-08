@@ -38,6 +38,7 @@ export default async function build(params: BuildIosParams): Promise<boolean> {
         `PROVISIONING_PROFILE_SPECIFIER=${config.codesigning.provisioningProfileName}`
     ]) || [];
 
+    const extraCliArgs = config.xcodebuildExtraCommandLineArgs || [];
     const xcarchivePath = path.join(outputDirectory, `${config.xcodeSchemeName}-${config.xcodeConfigName}.xcarchive`);
 
     await execa(
@@ -49,6 +50,7 @@ export default async function build(params: BuildIosParams): Promise<boolean> {
             '-configuration', config.xcodeConfigName,
             '-archivePath', xcarchivePath,
             ...codesigningParams,
+            ...extraCliArgs,
         ],
         {cwd: `${projectDirectory}/ios`}
     );
@@ -76,7 +78,7 @@ export default async function build(params: BuildIosParams): Promise<boolean> {
 <plist version="1.0">
 <dict>
   <key>method</key>
-  <string>app-store</string>
+  <string>${config.codesigning.ipaExportMethod || 'app-store'}</string>
   <key>signingStyle</key>
   <string>manual</string>
   <key>provisioningProfiles</key>
