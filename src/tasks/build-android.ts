@@ -38,17 +38,6 @@ export default async function buildAndroid(params: BuildAndroidParams): Promise<
     });
     dirContents.forEach(file => fse.copyFileSync(`${file}`, path.join(outputDirectory, path.basename(file))));
 
-    console.log('[barn] [android] Cleaning up caches dir');
-
-    await del([
-        path.join(cacheDirectory, 'daemon'),
-        path.join(cacheDirectory, 'native'),
-        path.join(cacheDirectory, 'notifications'),
-        path.join(cacheDirectory, 'jdks'),
-        path.join(cacheDirectory, '**/*.lock'),
-        path.join(cacheDirectory, 'caches/[123456789].[1234567890]'),
-    ], {force: true});
-
     console.log('[barn] [android] Build finished')
 
     return true;

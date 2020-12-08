@@ -8,6 +8,7 @@ import buildReactNativeBundle from "./tasks/build-rn-bundle";
 import buildAndroidApp from './tasks/build-android';
 import buildIosApp from './tasks/build-ios';
 import execa from "execa";
+import del from "del";
 
 interface BuildContext {
     projectDirectory: string,
@@ -75,18 +76,41 @@ export async function preBuild(context: BuildContext) {
         {cwd: path.join(projectDirectory, 'ios')}
     );
 
-    console.log('[barn] [prebuild] Run xcode-archive-cache')
-    await execa(
-        'bundle',
-        [
-            'exec',
-            'xcode-archive-cache', 'inject',
-            '--configuration=Release',
-            `--storage=${path.join(cacheDirectory, 'xcode')}`
-        ],
-        {cwd: path.join(projectDirectory, 'ios')}
-    );
+    try {
+        console.log('[barn] [prebuild] Run xcode-archive-cache')
+        await execa(
+            'bundle',
+            [
+                'exec',
+                'xcode-archive-cache', 'inject',
+                '--configuration=Release',
+                `--storage=${path.join(cacheDirectory, 'xcode')}`
+            ],
+            {cwd: path.join(projectDirectory, 'ios')}
+        );
+    }
+    catch (e) {
+        console.log('xcode-archive-cache failed, but it is not fatal', e);
+    }
 }
 
 export async function postBuild(context: BuildContext) {
+    const cacheDirectory = path.resolve(context.cacheDirectory);
+    const projectDirectory = path.resolve(context.projectDirectory);
+    const gradleCacheDirectory = path.join(cacheDirectory, 'gradle');
+
+    await execa(
+        './gradlew',
+        ['--stop'],
+        {cwd: path.join(projectDirectory, 'android') }
+    );
+
+    await del([
+        path.join(gradleCacheDirectory, 'daemon'),
+        path.join(gradleCacheDirectory, 'native'),
+        path.join(gradleCacheDirectory, 'notifications'),
+        path.join(gradleCacheDirectory, 'jdks'),
+        path.join(gradleCacheDirectory, '**/*.lock'),
+        path.join(gradleCacheDirectory, 'caches/[123456789].[1234567890]'),
+    ], {force: true});
 }
