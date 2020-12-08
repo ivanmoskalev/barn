@@ -1,6 +1,6 @@
 {
   "name": "@ivanmoskalev/barn",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "main": "dist/main.js",
   "license": "MIT",
   "private": false,
