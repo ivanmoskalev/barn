@@ -19,7 +19,7 @@
     "url": "https://github.com/ivanmoskalev/barn.git"
   },
   "scripts": {
-    "r": "ts-node main.ts",
+    "r": "rimraf dist && tsc && node dist/main.js",
     "prepublish": "rimraf dist && tsc"
   },
   "dependencies": {
