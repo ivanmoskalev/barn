@@ -3,5 +3,8 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "outDir": "dist",
+    "lib": ["ES2019"],
+    "module": "commonjs",
+    "target": "ES2019"
   }
 }
