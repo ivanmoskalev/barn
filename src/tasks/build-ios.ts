@@ -16,20 +16,6 @@ interface BuildIosParams {
 export default async function build(params: BuildIosParams): Promise<boolean> {
     const {projectDirectory, outputDirectory, cacheDirectory, config} = params;
 
-    console.log('[barn] [ios] Install CocoaPods')
-    await execa(
-        'pod',
-        ['install'],
-        {cwd: `${projectDirectory}/ios`}
-    );
-
-    console.log('[barn] [ios] Run xcode-archive-cache')
-    await execa(
-        'bundle',
-        ['exec', 'xcode-archive-cache', 'inject', '--configuration=Release', `--storage=${cacheDirectory}`],
-        {cwd: `${projectDirectory}/ios`}
-    );
-
     console.log('[barn] [ios] Run xcodebuild')
     const codesigningParams = (config.codesigning && [
         'CODE_SIGN_STYLE=Manual',

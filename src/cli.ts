@@ -12,19 +12,12 @@ program
     .option('--cache-dir [cachedir]', 'Path to the caches directory')
     .option('--config [configPath]', 'Path to the config')
     .action(async (options) => {
-        const outputDirectory = options.outputDir || `${options.projectDir}/build`;
-        const cacheDirectory = options.cacheDir || `${options.projectDir}/caches`;
-        const configPath = options.config || `${options.projectDir}/barn.config.js`;
+            const projectDirectory = path.resolve(options.projectDir);
+        const outputDirectory = path.resolve(options.outputDir || `${projectDirectory}/build`);
+        const cacheDirectory = path.resolve(options.cacheDir || `${projectDirectory}/caches`);
+        const configPath = path.resolve(options.config || `${projectDirectory}/barn.config.js`);
         const config = loadConfig(configPath);
-        for (const [schemeName, scheme] of Object.entries(config.schemes)) {
-                console.log(`Building scheme ${schemeName}...`);
-                await build({
-                        projectDirectory: options.projectDir,
-                        outputDirectory: path.join(outputDirectory, schemeName),
-                        cacheDirectory,
-                        config: scheme
-                })
-        }
+        await build({ projectDirectory, outputDirectory, cacheDirectory, schemes: config.schemes })
     });
 
 export default program;

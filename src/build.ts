@@ -7,12 +7,13 @@ import buildReactNativeBundle from "./tasks/build-rn-bundle";
 
 import buildAndroidApp from './tasks/build-android';
 import buildIosApp from './tasks/build-ios';
+import execa from "execa";
 
 interface BuildContext {
     projectDirectory: string,
     outputDirectory: string,
     cacheDirectory: string,
-    config: BarnSchemeConfig,
+    schemes: Map<string, BarnSchemeConfig>,
 }
 
 export default async function build(context: BuildContext): Promise<boolean> {
@@ -25,7 +26,10 @@ export default async function build(context: BuildContext): Promise<boolean> {
 
     await preBuild(context);
 
-    {
+    for (const [schemeName, scheme] of Object.entries(context.schemes)) {
+        const schemeOutputDirectory = path.join(outputDirectory, schemeName);
+        console.log(`Building scheme ${schemeName}...`);
+
         const tempProductsDir = path.resolve(path.join(tempDirectory, 'artifacts'));
         await Promise.all([
             FsUtil.cleanDirectory(path.join(tempProductsDir, 'jsbundle-ios')),
@@ -41,17 +45,17 @@ export default async function build(context: BuildContext): Promise<boolean> {
                 projectDirectory,
                 outputDirectory: path.join(tempProductsDir, 'ios'),
                 cacheDirectory: path.join(cacheDirectory, 'xcode'),
-                config: context.config.ios
+                config: scheme.ios
             }),
             buildAndroidApp({
                 projectDirectory,
                 outputDirectory: path.join(tempProductsDir, 'android'),
                 cacheDirectory: path.join(cacheDirectory, 'gradle'),
-                config: context.config.android
+                config: scheme.android
             })
         ]);
 
-        await fse.copy(tempProductsDir, outputDirectory, {recursive: true});
+        await fse.copy(tempProductsDir, schemeOutputDirectory, {recursive: true});
     }
 
     await postBuild(context);
@@ -61,6 +65,27 @@ export default async function build(context: BuildContext): Promise<boolean> {
 
 
 export async function preBuild(context: BuildContext) {
+    const projectDirectory = path.resolve(context.projectDirectory);
+    const cacheDirectory = path.resolve(context.cacheDirectory);
+
+    console.log('[barn] [prebuild] Install CocoaPods')
+    await execa(
+        'pod',
+        ['install'],
+        {cwd: path.join(projectDirectory, 'ios')}
+    );
+
+    console.log('[barn] [prebuild] Run xcode-archive-cache')
+    await execa(
+        'bundle',
+        [
+            'exec',
+            'xcode-archive-cache', 'inject',
+            '--configuration=Release',
+            `--storage=${path.join(cacheDirectory, 'xcode')}`
+        ],
+        {cwd: path.join(projectDirectory, 'ios')}
+    );
 }
 
 export async function postBuild(context: BuildContext) {
