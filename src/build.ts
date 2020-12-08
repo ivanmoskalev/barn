@@ -1,7 +1,7 @@
 import path from 'path';
 import execa from 'execa';
 import fse from 'fs-extra';
-import {BarnConfig} from "./config";
+import {BarnSchemeConfig} from "./config";
 import {FsUtil} from './util';
 import * as os from 'os';
 
@@ -12,10 +12,10 @@ interface BuildContext {
     projectDirectory: string,
     outputDirectory: string,
     cacheDirectory: string,
-    config: BarnConfig,
+    config: BarnSchemeConfig,
 }
 
-export async function build(context: BuildContext): Promise<boolean> {
+export default async function build(context: BuildContext): Promise<boolean> {
     const projectDirectory = path.resolve(context.projectDirectory);
     const outputDirectory = path.resolve(context.outputDirectory);
     const cacheDirectory = path.resolve(context.cacheDirectory);
