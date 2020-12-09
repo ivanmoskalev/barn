@@ -1,6 +1,6 @@
 # `barn`
 
-Build all React Native artifacts (`.ipa`, `.apk`, `.jsbundle`) with a single command:
+Build all React Native artifacts (`.ipa`, `.apk`, `.jsbundle`) with a single command.
 
 ```shell
 barn build
