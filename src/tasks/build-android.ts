@@ -1,27 +1,24 @@
-import {BarnAndroidConfig} from "../config";
+import * as Config from "../config";
 import execa from "execa";
 import {FsUtil} from "../util";
 import fse from "fs-extra";
 import path from "path";
-import del from "del";
+import {Task} from "./common";
 
-interface BuildAndroidParams {
-    projectDirectory: string
-    outputDirectory: string
-    cacheDirectory: string
-    config: BarnAndroidConfig
+interface BuildAndroidParams extends Task {
+    config: Config.AndroidTarget
     gradleExtraCommandLineArgs?: string[]
 }
 
 export default async function buildAndroid(params: BuildAndroidParams): Promise<boolean> {
     const {projectDirectory, outputDirectory, cacheDirectory, config} = params;
-    console.log('[barn] [android] Running gradle build');
+    console.log('[rnb] [android] Running gradle build');
 
     const extraCliArgs = params.gradleExtraCommandLineArgs || [];
     await execa(
         './gradlew',
         [
-            `assemble${config.gradleTarget}`,
+            `${config.gradleTarget}`,
             '--build-cache',
             '--gradle-user-home', cacheDirectory,
             '--parallel',
@@ -30,15 +27,33 @@ export default async function buildAndroid(params: BuildAndroidParams): Promise<
         {cwd: `${projectDirectory}/android`}
     );
 
-    console.log('[barn] [android] Copying .apk files');
+    console.log('[rnb] [android] Copying artifact files...');
 
-    const dirContents = await FsUtil.findFilesRecursively({
-        dir: path.join(projectDirectory, 'android'),
-        matching: /\.apk$/
-    });
-    dirContents.forEach(file => fse.copyFileSync(`${file}`, path.join(outputDirectory, path.basename(file))));
+    const artifactSpec = config.artifacts || ['apk'];
 
-    console.log('[barn] [android] Build finished')
+    await Promise.all(artifactSpec.map(async (a) => {
+        const files = await FsUtil.findFilesRecursively({
+            dir: path.join(projectDirectory, 'android'),
+            matching: artifactPatternFor(a)
+        });
+        files.forEach(srcPath => {
+            const dstPath = path.join(outputDirectory, a, path.basename(srcPath));
+            console.log(`[rnb] [android] Copying '${srcPath}' to '${dstPath}'`);
+            fse.copyFileSync(srcPath, dstPath);
+        });
+        return Promise.resolve();
+    }));
+
+    console.log('[rnb] [android] Build finished')
 
     return true;
+}
+
+function artifactPatternFor(artifactSpec: Config.AndroidArtifact): RegExp {
+    switch (artifactSpec) {
+        case "aab":
+            return /\.aab$/;
+        case "apk":
+            return /\.apk$/
+    }
 }

@@ -1,22 +1,20 @@
-import {BarnIosConfig} from "../config";
+import * as Config from "../config";
 import execa from "execa";
 import {FsUtil} from "../util";
 import path from "path";
 import fse from "fs-extra";
 import plist from 'plist';
 import bplist from 'bplist-parser';
+import {Task} from "./common";
 
-interface BuildIosParams {
-    projectDirectory: string,
-    outputDirectory: string,
-    cacheDirectory: string,
-    config: BarnIosConfig,
+interface BuildIosParams extends Task {
+    config: Config.IosTarget,
 }
 
 export default async function build(params: BuildIosParams): Promise<boolean> {
-    const {projectDirectory, outputDirectory, cacheDirectory, config} = params;
+    const {projectDirectory, outputDirectory, cacheDirectory, config, tempDirectory} = params;
 
-    console.log('[barn] [ios] Run xcodebuild')
+    console.log('[rnb] [ios] Run xcodebuild')
     const codesigningParams = (config.codesigning && [
         'CODE_SIGN_STYLE=Manual',
         `CODE_SIGN_IDENTITY=${config.codesigning.signingIdentity}`,
@@ -25,7 +23,7 @@ export default async function build(params: BuildIosParams): Promise<boolean> {
     ]) || [];
 
     const extraCliArgs = config.xcodebuildExtraCommandLineArgs || [];
-    const xcarchivePath = path.join(outputDirectory, `${config.xcodeSchemeName}-${config.xcodeConfigName}.xcarchive`);
+    const xcarchivePath = path.join(tempDirectory, `${config.xcodeSchemeName}-${config.xcodeConfigName}.xcarchive`);
 
     await execa(
         'xcodebuild',
@@ -41,7 +39,7 @@ export default async function build(params: BuildIosParams): Promise<boolean> {
         {cwd: `${projectDirectory}/ios`}
     );
 
-    console.log('[barn] [ios] Export IPA from .xcarchive')
+    console.log('[rnb] [ios] Export IPA from .xcarchive')
 
     // TODO: this should be done in a temp dir
 
@@ -80,12 +78,29 @@ export default async function build(params: BuildIosParams): Promise<boolean> {
         [
             '-exportArchive',
             '-archivePath', xcarchivePath,
-            '-exportPath', `${outputDirectory}`,
+            '-exportPath', `${tempDirectory}`,
             '-exportOptionsPlist', exportPlistPath,
         ]
     );
 
-    console.log('[barn] [ios] Build finished');
+    console.log('[rnb] [ios] Copying artifact files...');
+
+    const artifactSpec = config.artifacts || ['ipa'];
+
+    await Promise.all(artifactSpec.map(async (a) => {
+        const files = await FsUtil.findFilesRecursively({
+            dir: tempDirectory,
+            matching: artifactPatternFor(a)
+        });
+        files.forEach(srcPath => {
+            const dstPath = path.join(outputDirectory, a, path.basename(srcPath));
+            console.log(`[rnb] [ios] Copying '${srcPath}' to '${dstPath}'`);
+            fse.copyFileSync(srcPath, dstPath);
+        });
+        return Promise.resolve();
+    }));
+
+    console.log('[rnb] [ios] Build finished');
 
     return true;
 }
@@ -95,4 +110,15 @@ async function findAllProvisioningProfilesInXcarchive(xсarchivePath: string): P
         dir: path.join(xсarchivePath, '/Products/'),
         matching: /\.mobileprovision$/
     })
+}
+
+function artifactPatternFor(artifactSpec: Config.IosArtifact): RegExp {
+    switch (artifactSpec) {
+        case "ipa":
+            return /\.ipa$/;
+        case "xcarchive":
+            return /\.xcarchive/
+        case "dSYM":
+            return /\.dSYM/
+    }
 }

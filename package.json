@@ -1,11 +1,11 @@
 {
-  "name": "@ivanmoskalev/barn",
-  "version": "0.0.21",
+  "name": "@ivanmoskalev/rnb",
+  "version": "0.1.0",
   "main": "dist/main.js",
   "license": "MIT",
   "private": false,
   "bin": {
-    "barn": "dist/main.js"
+    "rnb": "dist/main.js"
   },
   "files": [
     "dist"
@@ -16,10 +16,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ivanmoskalev/barn.git"
+    "url": "https://github.com/ivanmoskalev/rnb.git"
   },
   "scripts": {
-    "r": "rimraf dist && ttsc && node dist/main.js",
+    "r": "ts-node main.ts",
+    "r:tsc": "rimraf dist && ttsc && node dist/main.js",
     "prepublish": "rimraf dist && ttsc"
   },
   "dependencies": {

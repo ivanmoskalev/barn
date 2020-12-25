@@ -1,61 +1,86 @@
 import path from 'path';
 import fse from 'fs-extra';
-import {BarnSchemeConfig} from "./config";
 import {FsUtil} from './util';
 import * as os from 'os';
 import buildReactNativeBundle from "./tasks/build-rn-bundle";
-
 import buildAndroidApp from './tasks/build-android';
 import buildIosApp from './tasks/build-ios';
 import execa from "execa";
 import del from "del";
+import * as Config from "./config";
+import buildExpoUpdate from "./tasks/build-expo-update";
 
 interface BuildContext {
     projectDirectory: string,
     outputDirectory: string,
     cacheDirectory: string,
-    schemes: Map<string, BarnSchemeConfig>,
+    config: Config.RnbConfig,
 }
 
 export default async function build(context: BuildContext): Promise<boolean> {
     const projectDirectory = path.resolve(context.projectDirectory);
     const outputDirectory = path.resolve(context.outputDirectory);
     const cacheDirectory = path.resolve(context.cacheDirectory);
-    const tempDirectory = fse.mkdtempSync(`${os.tmpdir()}/barn-build-`);
+    const tempDirectory = fse.mkdtempSync(`${os.tmpdir()}/rnb-build-`);
 
-    console.log('[barn] Starting build...')
+    const schemes = Config.isSingleSchemeConfig(context.config)
+        ? new Map([['', context.config]])
+        : context.config.schemes
+    ;
+
+    console.log('[rnb] Starting build...')
 
     await preBuild(context);
 
-    for (const [schemeName, scheme] of Object.entries(context.schemes)) {
+    for (const [schemeName, scheme] of schemes) {
         const schemeOutputDirectory = path.join(outputDirectory, schemeName);
-        console.log(`Building scheme ${schemeName}...`);
+        console.log(schemeName === '' ? 'Building default scheme...' : `Building scheme '${schemeName}'...`);
 
-        const tempProductsDir = path.resolve(path.join(tempDirectory, 'artifacts'));
-        await Promise.all([
-            FsUtil.cleanDirectory(path.join(tempProductsDir, 'jsbundle-ios')),
-            FsUtil.cleanDirectory(path.join(tempProductsDir, 'jsbundle-android')),
-            FsUtil.cleanDirectory(path.join(tempProductsDir, 'ios')),
-            FsUtil.cleanDirectory(path.join(tempProductsDir, 'android'))
-        ]);
+        const tempProductsDir = path.resolve(path.join(tempDirectory, schemeName, 'artifacts'));
+        await FsUtil.cleanDirectory(tempProductsDir);
 
-        await Promise.all([
-            buildReactNativeBundle(projectDirectory, path.join(tempProductsDir, 'jsbundle-ios'), 'ios'),
-            buildReactNativeBundle(projectDirectory, path.join(tempProductsDir, 'jsbundle-android'), 'android'),
-            buildIosApp({
-                projectDirectory,
-                outputDirectory: path.join(tempProductsDir, 'ios'),
-                cacheDirectory: path.join(cacheDirectory, 'xcode'),
-                config: scheme.ios
-            }),
-            buildAndroidApp({
-                projectDirectory,
-                outputDirectory: path.join(tempProductsDir, 'android'),
-                cacheDirectory: path.join(cacheDirectory, 'gradle'),
-                config: scheme.android
-            })
-        ]);
+        let work = scheme.targets.flatMap((target: Config.Target) => {
+            console.log('Building target', target);
+            switch (target.target) {
+                case "ios":
+                    return buildIosApp({
+                        projectDirectory,
+                        outputDirectory: path.join(tempProductsDir, target.target),
+                        cacheDirectory: path.join(cacheDirectory, target.target),
+                        tempDirectory: path.join(tempDirectory, target.target),
+                        config: target
+                    });
+                case "android":
+                    return buildAndroidApp({
+                        projectDirectory,
+                        outputDirectory: path.join(tempProductsDir, target.target),
+                        cacheDirectory: path.join(cacheDirectory, target.target),
+                        tempDirectory: path.join(tempDirectory, target.target),
+                        config: target
+                    });
+                case "expo":
+                    return buildExpoUpdate({
+                        projectDirectory,
+                        outputDirectory: path.join(tempProductsDir, target.target),
+                        cacheDirectory: path.join(cacheDirectory, target.target),
+                        tempDirectory: path.join(tempDirectory, target.target),
+                        config: target
+                    })
+                case "rn-bundle":
+                    return buildReactNativeBundle({
+                        projectDirectory,
+                        outputDirectory: path.join(tempProductsDir, target.target),
+                        cacheDirectory: path.join(cacheDirectory, target.target),
+                        tempDirectory: path.join(tempDirectory, target.target),
+                        platform: target.platform,
+                        includeSourcemaps: true,
+                    });
+                default:
+                    throw new Error(`Unknown target specified! Target looks like this: ${JSON.stringify(target)}`);
+            }
+        })
 
+        await Promise.all(work);
         await fse.copy(tempProductsDir, schemeOutputDirectory, {recursive: true});
     }
 
@@ -69,7 +94,7 @@ export async function preBuild(context: BuildContext) {
     const projectDirectory = path.resolve(context.projectDirectory);
     const cacheDirectory = path.resolve(context.cacheDirectory);
 
-    console.log('[barn] [prebuild] Install CocoaPods')
+    console.log('[rnb] [prebuild] Install CocoaPods')
     await execa(
         'pod',
         ['install'],
@@ -77,7 +102,7 @@ export async function preBuild(context: BuildContext) {
     );
 
     try {
-        console.log('[barn] [prebuild] Run xcode-archive-cache')
+        console.log('[rnb] [prebuild] Run xcode-archive-cache')
         await execa(
             'bundle',
             [
