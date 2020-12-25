@@ -23,6 +23,9 @@
     "r:tsc": "rimraf dist && ttsc && node dist/main.js",
     "prepublish": "rimraf dist && ttsc"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "bplist-parser": "^0.2.0",
     "commander": "^5.1.0",
