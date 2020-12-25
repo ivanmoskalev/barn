@@ -38,6 +38,7 @@ export default async function buildAndroid(params: BuildAndroidParams): Promise<
         });
         files.forEach(srcPath => {
             const dstPath = path.join(outputDirectory, a, path.basename(srcPath));
+            fse.mkdirpSync(path.join(outputDirectory, a));
             console.log(`[rnb] [android] Copying '${srcPath}' to '${dstPath}'`);
             fse.copyFileSync(srcPath, dstPath);
         });

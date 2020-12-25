@@ -21,7 +21,7 @@ export default async function build(context: BuildContext): Promise<boolean> {
     const projectDirectory = path.resolve(context.projectDirectory);
     const outputDirectory = path.resolve(context.outputDirectory);
     const cacheDirectory = path.resolve(context.cacheDirectory);
-    const tempDirectory = fse.mkdtempSync(`${os.tmpdir()}/rnb-build-`);
+    const tempRootDir = fse.mkdtempSync(`${os.tmpdir()}/rnb-build-`);
 
     const schemes = Config.isSingleSchemeConfig(context.config)
         ? new Map([['', context.config]])
@@ -36,7 +36,9 @@ export default async function build(context: BuildContext): Promise<boolean> {
         const schemeOutputDirectory = path.join(outputDirectory, schemeName);
         console.log(schemeName === '' ? 'Building default scheme...' : `Building scheme '${schemeName}'...`);
 
-        const tempProductsDir = path.resolve(path.join(tempDirectory, schemeName, 'artifacts'));
+        const tempRootDir = fse.mkdtempSync(`${os.tmpdir()}/rnb-build-`);
+        const tempProductsDir = path.resolve(path.join(tempRootDir, schemeName, 'artifacts'));
+        const tempDirectory = path.resolve(path.join(tempRootDir, schemeName, 'tmp'));
         await FsUtil.cleanDirectory(tempProductsDir);
 
         let work = scheme.targets.flatMap((target: Config.Target) => {

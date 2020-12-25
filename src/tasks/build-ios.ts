@@ -94,6 +94,7 @@ export default async function build(params: BuildIosParams): Promise<boolean> {
         });
         files.forEach(srcPath => {
             const dstPath = path.join(outputDirectory, a, path.basename(srcPath));
+            fse.mkdirpSync(path.join(outputDirectory, a));
             console.log(`[rnb] [ios] Copying '${srcPath}' to '${dstPath}'`);
             fse.copyFileSync(srcPath, dstPath);
         });
