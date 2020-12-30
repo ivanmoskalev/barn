@@ -69,6 +69,7 @@ export default async function build(params: BuildIosParams): Promise<boolean> {
   <dict>
     ${bundleIdToProvProfileMapping.join('\n    ')}
   </dict>
+  ${config.ipaExportConfig.compileBitcode ? '<key>compileBitcode</key><true/>' : '<key>compileBitcode</key><false/>'}
 </dict>
 </plist>`;
     await fse.writeFile(exportPlistPath, exportPlist);

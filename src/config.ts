@@ -22,7 +22,18 @@ export interface IosTarget {
     xcodeConfigName: string
     codesigning?: IosCodesigningConfig
     xcodebuildExtraCommandLineArgs?: string[]
+    ipaExportConfig?: IpaExportConfig
     artifacts?: IosArtifact[]
+}
+
+export interface IosCodesigningConfig {
+    signingIdentity: string
+    provisioningProfileName: string
+    ipaExportMethod?: string
+}
+
+export interface IpaExportConfig {
+    compileBitcode?: boolean
 }
 
 export type IosArtifact = 'ipa' | 'xcarchive' | 'dSYM';
@@ -54,12 +65,6 @@ export interface ExpoUpdateTarget {
 }
 
 export type ExpoUpdateArtifact = 'update-package' | 'sourcemaps';
-
-export interface IosCodesigningConfig {
-    signingIdentity: string
-    provisioningProfileName: string
-    ipaExportMethod?: string
-}
 
 export default function loadConfig(configPath: string): RnbConfig {
     const exists = fse.pathExistsSync(configPath);
