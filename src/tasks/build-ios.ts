@@ -62,14 +62,14 @@ export default async function build(params: BuildIosParams): Promise<boolean> {
 <plist version="1.0">
 <dict>
   <key>method</key>
-  <string>${config.codesigning.ipaExportMethod || 'app-store'}</string>
+  <string>${config.codesigning?.ipaExportMethod || 'app-store'}</string>
   <key>signingStyle</key>
   <string>manual</string>
   <key>provisioningProfiles</key>
   <dict>
     ${bundleIdToProvProfileMapping.join('\n    ')}
   </dict>
-  ${config.ipaExportConfig.compileBitcode ? '<key>compileBitcode</key><true/>' : '<key>compileBitcode</key><false/>'}
+  ${config.ipaExportConfig?.compileBitcode ? '<key>compileBitcode</key><true/>' : '<key>compileBitcode</key><false/>'}
 </dict>
 </plist>`;
     await fse.writeFile(exportPlistPath, exportPlist);
