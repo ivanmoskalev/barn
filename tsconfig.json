@@ -6,8 +6,5 @@
     "lib": ["ES2019"],
     "module": "commonjs",
     "target": "ES2019",
-    "plugins": [
-      { "transform": "typescript-is/lib/transform-inline/transformer" }
-    ]
   }
 }

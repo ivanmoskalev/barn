@@ -1,7 +1,7 @@
-import path from "path";
-import {Command} from "commander";
-import build from "./build";
-import loadConfig from "./config";
+import path from 'path';
+import { Command } from 'commander';
+import build from './build';
+import loadConfig from './config';
 
 const program = new Command('rnb');
 
@@ -17,7 +17,7 @@ program
         const cacheDirectory = path.resolve(options.cacheDir || `${projectDirectory}/caches`);
         const configPath = path.resolve(options.config || `${projectDirectory}/rnb.config.js`);
         const config = loadConfig(configPath);
-        await build({ projectDirectory, outputDirectory, cacheDirectory, config })
+        await build({ projectDirectory, outputDirectory, cacheDirectory, config });
     });
 
 export default program;
