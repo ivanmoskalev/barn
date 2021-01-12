@@ -40,6 +40,7 @@ export default async function build(context: BuildContext): Promise<boolean> {
         await FsUtil.cleanDirectory(tempProductsDir);
 
         let work = scheme.targets.flatMap((target: Config.Target) => {
+            stopwatch.splitTime();
             console.log('Building target', target);
             switch (target.target) {
                 case 'ios':
@@ -82,6 +83,7 @@ export default async function build(context: BuildContext): Promise<boolean> {
 
         await Promise.all(work);
         await fse.copy(tempProductsDir, schemeOutputDirectory, { recursive: true });
+        console.log(`[rnb] Target built! Execution time: ${TimeUtil.humanReadableDuration(stopwatch.totalDuration())}`);
     }
 
     await postBuild(context, stopwatch);
@@ -96,12 +98,14 @@ export async function preBuild(context: BuildContext, stopwatch: TimeUtil.Stopwa
     const cacheDirectory = path.resolve(context.cacheDirectory);
 
     {
+        stopwatch.splitTime();
         console.log('[rnb] [prebuild] Installing CocoaPods...');
         await execa('pod', ['install'], { cwd: path.join(projectDirectory, 'ios') });
         console.log(`[rnb] [prebuild] Installing CocoaPods... Done in ${TimeUtil.humanReadableDuration(stopwatch.splitTime())}!`);
     }
 
     try {
+        stopwatch.splitTime();
         console.log('[rnb] [prebuild] Running xcode-archive-cache...');
         await execa(
             'bundle',
@@ -122,6 +126,7 @@ export async function postBuild(context: BuildContext, stopwatch: TimeUtil.Stopw
     const gradleCacheDirectory = path.join(cacheDirectory, 'gradle');
 
     {
+        stopwatch.splitTime();
         console.log('[rnb] [postbuild] Stopping gradle daemon...');
         await execa('./gradlew', ['--stop'], { cwd: path.join(projectDirectory, 'android') });
         console.log(`[rnb] [postbuild] Stopping gradle daemon... Done in ${TimeUtil.humanReadableDuration(stopwatch.splitTime())}!`);

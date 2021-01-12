@@ -5,7 +5,7 @@ export function humanReadableDuration(ms: number): string {
     const leftoverMs = ms % 1000;
     const min = Math.ceil(sec / 60);
     const leftoverSec = sec % 60;
-    if (min < 1) {
+    if (min > 1) {
         return `${min}m ${leftoverSec}s`;
     }
     return `${sec}s`;
